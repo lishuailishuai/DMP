@@ -1,6 +1,7 @@
 package com.etl
 
 import com.util.{SchemaUtil, String2Type}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -10,7 +11,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object Log2parquet {
 
   def main(args: Array[String]): Unit = {
-    System.setProperty("hadoop.home.dir", "D:\\Huohu\\下载\\hadoop-common-2.2.0-bin-master")
+    //System.setProperty("hadoop.home.dir", "D:\\Huohu\\下载\\hadoop-common-2.2.0-bin-master")
     // 设定目录限制
     if(args.length != 2 ){
       println("目录不正确，退出程序")
@@ -27,9 +28,9 @@ object Log2parquet {
     // 设置压缩方式
     sQLContext.setConf("spark.sql.parquet.compression.codec","snappy")
     // 处理数据
-    val lines = sc.textFile(inputPath)
+    val lines: RDD[String] = sc.textFile(inputPath)
     // 设置过滤条件和切分条件 内部如果切割条件相连过多，那么 需要设置切割处理条件
-    val rowRDD = lines.map(t=>t.split(",",-1)).filter(t=>t.length>=85).map(arr=>{
+    val rowRDD: RDD[Row] = lines.map(t=>t.split(",",-1)).filter(t=>t.length>=85).map(arr=>{
       Row(
         arr(0),
         String2Type.toInt(arr(1)),
