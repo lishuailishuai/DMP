@@ -8,7 +8,9 @@ import org.apache.hadoop.hbase.mapred.TableOutputFormat
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableName}
 import org.apache.hadoop.mapred.JobConf
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 /**
@@ -67,7 +69,7 @@ object TagsContext2 {
     val docsRDD = spark.sparkContext.textFile(docs).map(_.split("\\s")).filter(_.length>=5)
       .map(arr=>(arr(4),arr(1))).collectAsMap()
     // 广播字典
-    val broadValue = spark.sparkContext.broadcast(docsRDD)
+    val broadValue: Broadcast[collection.Map[String, String]] = spark.sparkContext.broadcast(docsRDD)
     // 读取停用词典
     val stopwordsRDD = spark.sparkContext.textFile(stopwords).map((_,0)).collectAsMap()
     // 广播字典
@@ -79,7 +81,7 @@ object TagsContext2 {
       (strList,row)
     })
     // 构建点集合
-    val verties = allUserId.flatMap(row=>{
+    val verties: RDD[(Long, List[(String, Int)])] = allUserId.flatMap(row=>{
       // 获取所有数据
       val rows = row._2
 
@@ -98,10 +100,10 @@ object TagsContext2 {
       val tagList = adList++ appList++devList++locList++kwList
       // 保留用户Id
       val VD = row._1.map((_,0))++tagList
-      // 思考  1. 如何保证其中一个ID携带着用户的标签
-      //     2. 用户ID的字符串如何处理
+      // 思考  1. 如何保证其中一个ID，携带着用户的标签
+      //     2. 用户ID的字符串如何处理       字符串转long类型    (2L,("小红",30)),
       row._1.map(uId=>{
-        if(row._1.head.equals(uId)){
+        if(row._1.head.equals(uId)){//保证其中一个ID，携带着用户的标签
           (uId.hashCode.toLong,VD)
         }else{
           (uId.hashCode.toLong,List.empty)
@@ -110,8 +112,8 @@ object TagsContext2 {
     })
     // 打印
     //verties.take(20).foreach(println)
-    // 构建边的集合
-    val edges = allUserId.flatMap(row=>{
+    // 构建边的集合   强制关联点
+    val edges = allUserId.flatMap(row=>{   //保证其中一个点不动，其余点动
       // A B C: A->B  A ->C
       row._1.map(uId=>Edge(row._1.head.hashCode.toLong,uId.hashCode.toLong,0))
     })

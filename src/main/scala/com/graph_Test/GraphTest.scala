@@ -1,6 +1,7 @@
 package com.graph_Test
 
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.graphx.{Edge, Graph, VertexId, VertexRDD}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 /**
@@ -13,9 +14,10 @@ object GraphTest {
     val spark = SparkSession.builder().appName("graph").master("local").getOrCreate()
 
     // 创建点和边
+
     // 构建点的集合
-    val vertexRDD = spark.sparkContext.makeRDD(Seq(
-      (1L,("小明",26)),
+    val vertexRDD: RDD[(Long, (String, Int))] = spark.sparkContext.makeRDD(Seq(
+      (1L,("小明",26)),//元组里面第一个参数放点（long类型），第二个参数放点的属性介绍
       (2L,("小红",30)),
       (6L,("小黑",33)),
       (9L,("小白",26)),
@@ -29,8 +31,8 @@ object GraphTest {
       (7L,("小熊",33))
     ))
     // 构造边的集合
-    val edgeRDD = spark.sparkContext.makeRDD(Seq(
-      Edge(1L,133L,0),
+    val edgeRDD: RDD[Edge[Int]] = spark.sparkContext.makeRDD(Seq(
+      Edge(1L,133L,0),//边的第一个点，边的第二个点，边的属性（这里用0占位  因为我们只做连通图的效果）
       Edge(2L,133L,0),
       Edge(6L,133L,0),
       Edge(9L,133L,0),
@@ -45,7 +47,7 @@ object GraphTest {
     // 构建图
     val graph = Graph(vertexRDD,edgeRDD)
     // 取顶点
-    val vertices = graph.connectedComponents().vertices
+    val vertices: VertexRDD[VertexId] = graph.connectedComponents().vertices
 
     // 匹配数据
     vertices.join(vertexRDD).map{
